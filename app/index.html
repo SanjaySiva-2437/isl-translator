@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ISL Translator</title>
+<link rel="stylesheet" href="style.css">
+<script type="importmap">
+{ "imports": { "@mediapipe/tasks-vision": "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/vision_bundle.mjs" } }
+</script>
+<script>
+  // Where to load the libraries and landmark models from (overridable for local testing).
+  window.ISL_CFG = window.ISL_CFG || {
+    wasm: "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm",
+    hand: "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task",
+    pose: "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task"
+  };
+</script>
+<script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.20.1/dist/ort.min.js"></script>
+</head>
+<body>
+<main>
+  <h1>ISL Translator</h1>
+  <p class="sub">Indian Sign Language to text and speech</p>
+
+  <div id="stage">
+    <div id="mirror">
+      <video id="video" playsinline muted></video>
+      <canvas id="overlay"></canvas>
+    </div>
+    <div id="guide" aria-hidden="true">
+      <svg viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet">
+        <ellipse cx="50" cy="26" rx="11" ry="14"/>
+        <path d="M18 78 C18 56 32 48 50 48 C68 48 82 56 82 78"/>
+        <line x1="50" y1="40" x2="50" y2="48"/>
+      </svg>
+    </div>
+    <div id="chip" class="chip">Loading...</div>
+  </div>
+  <p id="frameHint">Line up your head and shoulders with the outline.</p>
+  <p id="voiceHint">Tap anywhere once to turn on voice.</p>
+
+  <div class="controls">
+    <button id="btnCam" disabled>Start camera</button>
+    <button id="btnRec" class="alt" disabled>Record manually</button>
+    <label><input type="checkbox" id="auto" checked> Listen continuously</label>
+    <label><input type="checkbox" id="speak" checked> Speak</label>
+  </div>
+  <div class="controls">
+    <button id="btnFile" class="alt" disabled>Test video file</button>
+    <input type="file" id="fileIn" accept="video/*" hidden>
+    <input type="text" id="clipLabel" placeholder="word (for saved clip)" size="16">
+    <button id="btnSave" class="alt" disabled>Save last clip</button>
+  </div>
+
+  <section id="result">
+    <div id="word">-</div>
+    <div id="hint">Show a sign to the camera.</div>
+    <div id="bars"></div>
+  </section>
+
+  <section>
+    <div class="row"><h2>History</h2><button id="btnClear" class="link">Clear</button></div>
+    <div id="history"></div>
+  </section>
+
+  <p class="note">Tip: keep your head, shoulders and both hands in view, with good light. The camera starts by itself; just sign and pause between signs. Recognises 40 words (greetings, pronouns, everyday words).</p>
+</main>
+<script type="module" src="app.js"></script>
+</body>
+</html>

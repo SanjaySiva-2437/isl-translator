@@ -1,0 +1,9 @@
+best epoch 98  val acc 0.9897
+TEST (97 videos): top-1 0.9588  top-5 0.9897  loss 0.261
+parameters: 237,224
+
+Wrong test videos (4):
+  41. you  ->  predicted 40. I
+  43. she  ->  predicted 42. he
+  46. you (plural)  ->  predicted 40. I
+  19. Ball  ->  predicted 52. Good afternoon

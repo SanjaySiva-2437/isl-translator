@@ -1,4 +1,4 @@
-﻿mediapipe==1.2.2
+mediapipe==1.2.2
 numpy==2.5.4
 opencv-python==5.0.0.93
 tqdm==4.70.1

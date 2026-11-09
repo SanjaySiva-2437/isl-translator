@@ -18,7 +18,7 @@ let hand, pose, session, labels = [];
 let running = false, state = "idle";       // idle | recording
 let buf = [], pre = [], handRun = 0, lastHandT = 0, startT = 0, manual = false;
 let lastVideoTime = -1, tsCounter = 0;
-let fileMode = false, lastClip = null;
+let fileMode = false, lastClip = null, lastInfo = "";
 
 function setChip(text, rec = false) { chip.textContent = text; chip.classList.toggle("rec", rec); }
 
@@ -114,7 +114,7 @@ function showResult(top) {
   const [p1, i1] = top[0];
   const sure = p1 >= THRESHOLD;
   $("word").textContent = sure ? labels[i1] : "Not sure";
-  $("hint").textContent = sure ? "Best match" : "Low confidence - try again, slower and fully in view.";
+  $("hint").textContent = (sure ? "Best match" : "Low confidence - try again, slower and fully in view.") + (lastInfo ? "  [" + lastInfo + "]" : "");
   $("bars").innerHTML = top.map(([p, i]) =>
     `<div class="bar"><span class="name">${labels[i]}</span><span class="track"><span class="fill" style="width:${(p * 100).toFixed(0)}%"></span></span><span class="pct">${(p * 100).toFixed(0)}%</span></div>`).join("");
   if (sure) {
@@ -137,6 +137,8 @@ async function stopRecording(reason) {
   const handFrames = clip.filter(isActive).length;
   if (handFrames < MIN_HAND_FRAMES) { setChip(running ? "Ready" : "Stopped"); return; }
   setChip("Thinking...");
+  lastInfo = `clip ${clip.length} frames, hand seen in ${clip.filter(hasHand).length}, hands up in ${handFrames}, both hands in ${clip.filter((x) => x[140] > 0 && x[141] > 0).length}`;
+  console.log("CLIP", lastInfo);
   await predict(clip);
   setChip(running ? "Ready" : "Stopped");
 }
@@ -227,7 +229,7 @@ $("fileIn").onchange = async (e) => {
   await video.play();
   requestAnimationFrame(loop);
   video.onended = async () => {
-    running = false; fileMode = false;
+    running = false; fileMode = false; lastInfo = "";
     const full = buf.slice(); buf = [];
     setChip("Thinking...");
     const trimmed = (() => { let a = 0, b = full.length - 1;

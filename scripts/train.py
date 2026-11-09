@@ -5,7 +5,7 @@ Input : dataset.npz from prepare_data.py (X: N x 32 x 142), label_map.json
 Output: <out>/best.pt (weights), <out>/history.csv, <out>/results.txt
 
 Usage (from the repo root, venv active):
-  python scripts\\train.py --data F:\\isl-translator\\data\\processed\\dataset.npz --label-map label_map.json --out F:\\isl-translator\\data\\runs\\run1
+  python scripts\\train.py --aug strong --data F:\\isl-translator\\data\\processed\\dataset.npz --label-map label_map.json --out F:\\isl-translator\\data\\runs\\run1
 """
 import argparse
 import csv
@@ -16,6 +16,8 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+
+from augmentation import augment as augment_strong
 
 
 class SignNet(nn.Module):
@@ -81,11 +83,14 @@ def main():
     ap.add_argument("--batch", type=int, default=32)
     ap.add_argument("--lr", type=float, default=2e-3)
     ap.add_argument("--seed", type=int, default=42)
+    ap.add_argument("--aug", choices=["basic", "strong"], default="strong",
+                    help="basic = original small noise/scale/shift; strong = camera angle, tilt, hand loss, mirror (scripts/augmentation.py)")
     args = ap.parse_args()
 
     torch.manual_seed(args.seed)
     np.random.seed(args.seed)
     gen = torch.Generator().manual_seed(args.seed)
+    rng = np.random.default_rng(args.seed)
     args.out.mkdir(parents=True, exist_ok=True)
 
     label_map = json.loads(args.label_map.read_text(encoding="utf-8"))
@@ -111,7 +116,11 @@ def main():
         tl, tc = 0.0, 0
         for i in range(0, len(perm), args.batch):
             idx = perm[i:i + args.batch]
-            xb, yb = augment(Xtr[idx], gen), ytr[idx]
+            if args.aug == "strong":
+                xb = torch.from_numpy(augment_strong(Xtr[idx].numpy(), rng))
+            else:
+                xb = augment(Xtr[idx], gen)
+            yb = ytr[idx]
             logits = model(xb)
             loss = F.cross_entropy(logits, yb, label_smoothing=0.1)
             opt.zero_grad()

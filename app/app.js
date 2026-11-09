@@ -7,7 +7,7 @@ const T = 32, NF = 142;
 const POSE_IDX = [0, 11, 12, 13, 14, 15, 16];   // nose, shoulders, elbows, wrists
 const ASPECT_TRAIN = 1920 / 1080;               // training videos are 16:9
 const THRESHOLD = 0.5;                          // below this: "not sure"
-const START_FRAMES = 3, STOP_SECONDS = 0.8, PAD = 8, PRE = 15, MAX_SECONDS = 6, MIN_HAND_FRAMES = 8;
+const START_FRAMES = 3, STOP_SECONDS = 1.0, PAD = 8, PRE = 20, MAX_SECONDS = 6, MIN_HAND_FRAMES = 8;
 const ACTIVE_Y = 1.2;   // a hand counts as "signing" when its wrist is above this line (shoulder-widths below the shoulders)
 
 const $ = (id) => document.getElementById(id);
@@ -27,7 +27,8 @@ async function init() {
   const fileset = await FilesetResolver.forVisionTasks(CFG.wasm);
   const common = { runningMode: "VIDEO" };
   hand = await HandLandmarker.createFromOptions(fileset, {
-    baseOptions: { modelAssetPath: CFG.hand }, numHands: 2, ...common });
+    baseOptions: { modelAssetPath: CFG.hand }, numHands: 2,
+    minHandDetectionConfidence: 0.3, minHandPresenceConfidence: 0.3, minTrackingConfidence: 0.3, ...common });
   pose = await PoseLandmarker.createFromOptions(fileset, {
     baseOptions: { modelAssetPath: CFG.pose }, numPoses: 1, ...common });
   session = await ort.InferenceSession.create("model/sign_model.onnx");
@@ -71,7 +72,10 @@ function frameFeatures(hr, pr, aspect) {
 }
 const hasHand = (f) => f[140] > 0 || f[141] > 0;
 // signing = a hand is up (wrist above the waist line). Resting hands clasped low do not count.
-const isActive = (f) => (f[140] > 0 && f[1] < ACTIVE_Y) || (f[141] > 0 && f[64] < ACTIVE_Y);
+// The pose model always reports the wrists, even when the hand detector loses the hand (blur, hand in front of the face),
+// so use them too. That way a sign is caught from the moment the arm starts to rise.
+const wristUp = (f) => f[137] < ACTIVE_Y || f[139] < ACTIVE_Y;
+const isActive = (f) => (f[140] > 0 && f[1] < ACTIVE_Y) || (f[141] > 0 && f[64] < ACTIVE_Y) || wristUp(f);
 
 // ---- framing check: is the person positioned so the model can read them? ----
 function framing(pr) {
@@ -135,7 +139,7 @@ async function stopRecording(reason) {
   const clip = buf.slice(0, Math.min(buf.length, last + 1 + PAD));
   buf = [];
   const handFrames = clip.filter(isActive).length;
-  if (handFrames < MIN_HAND_FRAMES) { setChip(running ? "Ready" : "Stopped"); return; }
+  if (handFrames < MIN_HAND_FRAMES || clip.filter(hasHand).length < 4) { setChip(running ? "Ready" : "Stopped"); return; }
   setChip("Thinking...");
   lastInfo = `clip ${clip.length} frames, hand seen in ${clip.filter(hasHand).length}, hands up in ${handFrames}, both hands in ${clip.filter((x) => x[140] > 0 && x[141] > 0).length}`;
   console.log("CLIP", lastInfo);
@@ -195,7 +199,7 @@ function loop() {
 async function startCamera() {
   try {
     video.srcObject = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false });
+      video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 30 } }, audio: false });
   } catch (e) { setChip("Camera blocked - tap Start camera"); return; }
   await video.play();
   running = true; btnCam.textContent = "Stop camera"; btnRec.disabled = false; setChip("Listening");

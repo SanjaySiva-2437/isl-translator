@@ -38,3 +38,9 @@ input[type=text] { font:inherit; padding:9px 10px; border:1px solid var(--line);
 #frameHint, #voiceHint { margin:8px 0 0; font-size:.9rem; color:var(--muted); }
 #voiceHint.off { display:none; }
 @media (max-width:600px) { #stage { aspect-ratio: 3/4; } }
+
+#collect { border:1px dashed var(--line); border-radius:10px; padding:12px 14px; margin:8px 0 14px; }
+#collect .controls { margin:8px 0; }
+#collectInfo { color:var(--muted); font-size:.85rem; margin:4px 0; }
+#counts { font-size:.85rem; color:var(--fg); }
+select { font:inherit; padding:9px 10px; border:1px solid var(--line); border-radius:8px; background:var(--bg); color:var(--fg); max-width:100%; }

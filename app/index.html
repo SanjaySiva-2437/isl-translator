@@ -53,6 +53,18 @@
     <button id="btnSave" class="alt" disabled>Save last clip</button>
   </div>
 
+  <section id="collect">
+    <div class="row"><h2>Record training clips</h2></div>
+    <div class="controls">
+      <label><input type="checkbox" id="collectOn"> Collect mode</label>
+      <select id="collectWord"></select>
+      <button id="btnUndo" class="alt" disabled>Undo last</button>
+      <button id="btnDl" class="alt" disabled>Download clips (0)</button>
+    </div>
+    <p id="collectInfo">Turn on Collect mode, pick the word, then sign it and pause. Each sign is saved under that word. Aim for 10-15 per word. Do not refresh the page before you download.</p>
+    <div id="counts"></div>
+  </section>
+
   <section id="result">
     <div id="word">-</div>
     <div id="hint">Show a sign to the camera.</div>

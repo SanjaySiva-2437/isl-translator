@@ -6,7 +6,8 @@ const CFG = window.ISL_CFG;
 const T = 32, NF = 142;
 const POSE_IDX = [0, 11, 12, 13, 14, 15, 16];   // nose, shoulders, elbows, wrists
 const ASPECT_TRAIN = 1920 / 1080;               // training videos are 16:9
-const THRESHOLD = 0.5;                          // below this: "not sure"
+const THRESHOLD = 0.5;                          // at or above this: accept
+const MIN_LIKELY = 0.4, MARGIN = 2;             // or accept 40%+ when it is at least 2x the runner-up
 const START_FRAMES = 3, STOP_SECONDS = 1.0, PAD = 8, PRE = 20, MAX_SECONDS = 6, MIN_HAND_FRAMES = 8;
 const ACTIVE_Y = 1.2;   // a hand counts as "signing" when its wrist is above this line (shoulder-widths below the shoulders)
 
@@ -116,9 +117,12 @@ async function predict(frames, show = true) {
 }
 function showResult(top) {
   const [p1, i1] = top[0];
-  const sure = p1 >= THRESHOLD;
+  const p2 = top[1] ? top[1][0] : 0;
+  const strong = p1 >= THRESHOLD;
+  const likely = !strong && p1 >= MIN_LIKELY && p1 >= MARGIN * p2;   // clear winner even if not very confident
+  const sure = strong || likely;
   $("word").textContent = sure ? labels[i1] : "Not sure";
-  $("hint").textContent = (sure ? "Best match" : "Low confidence - try again, slower and fully in view.") + (lastInfo ? "  [" + lastInfo + "]" : "");
+  $("hint").textContent = (strong ? "Best match" : likely ? "Likely match" : "Low confidence - try again, slower and fully in view.") + (lastInfo ? "  [" + lastInfo + "]" : "");
   $("bars").innerHTML = top.map(([p, i]) =>
     `<div class="bar"><span class="name">${labels[i]}</span><span class="track"><span class="fill" style="width:${(p * 100).toFixed(0)}%"></span></span><span class="pct">${(p * 100).toFixed(0)}%</span></div>`).join("");
   if (sure) {

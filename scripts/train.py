@@ -152,6 +152,11 @@ def main():
     lines = [f"best epoch {best_epoch}  val acc {best_acc:.4f}",
              f"TEST ({len(Xte)} videos): top-1 {ta:.4f}  top-5 {t5:.4f}  loss {tl_:.3f}",
              f"parameters: {n_params:,}", ""]
+    if "n_orig_test" in d.files:                 # dataset made by merge_clips.py: report the two groups separately
+        n0 = int(d["n_orig_test"])
+        lines.insert(2, f"  original test videos: {(pred[:n0] == yte[:n0]).float().mean().item():.4f} ({n0} clips)")
+        if len(yte) > n0:
+            lines.insert(3, f"  your own held-out clips: {(pred[n0:] == yte[n0:]).float().mean().item():.4f} ({len(yte) - n0} clips)")
     wrong = [(names[int(t)], names[int(p)]) for t, p in zip(yte, pred) if t != p]
     lines.append(f"Wrong test videos ({len(wrong)}):")
     lines += [f"  {t}  ->  predicted {p}" for t, p in wrong]

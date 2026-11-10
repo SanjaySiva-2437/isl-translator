@@ -34,6 +34,7 @@ async function init() {
     baseOptions: { modelAssetPath: CFG.pose }, numPoses: 1, ...common });
   session = await ort.InferenceSession.create("model/sign_model.onnx");
   labels = await (await fetch("model/labels.json")).json();
+  $("collectWord").innerHTML = [...labels].sort((x, y) => x.localeCompare(y)).map((l) => `<option>${l}</option>`).join("");
   setChip("Ready");
   btnCam.disabled = false; $("btnFile").disabled = false;
   await startCamera();                      // start listening right away; no button needed
@@ -108,6 +109,7 @@ function softmax(a) {
 async function predict(frames, show = true) {
   const clip = resample(frames);
   lastClip = clip; $("btnSave").disabled = false;
+  if (show && $("collectOn").checked && !fileMode) addCollected(clip);
   const input = new ort.Tensor("float32", clip, [1, T, NF]);
   const logits = (await session.run({ clip: input })).logits.data;
   const p = softmax(Array.from(logits));
@@ -125,7 +127,7 @@ function showResult(top) {
   $("hint").textContent = (strong ? "Best match" : likely ? "Likely match" : "Low confidence - try again, slower and fully in view.") + (lastInfo ? "  [" + lastInfo + "]" : "");
   $("bars").innerHTML = top.map(([p, i]) =>
     `<div class="bar"><span class="name">${labels[i]}</span><span class="track"><span class="fill" style="width:${(p * 100).toFixed(0)}%"></span></span><span class="pct">${(p * 100).toFixed(0)}%</span></div>`).join("");
-  if (sure) {
+  if (sure && !$("collectOn").checked) {
     const h = document.createElement("span"); h.textContent = labels[i1]; $("history").appendChild(h);
     if ($("speak").checked && "speechSynthesis" in window) {
       speechSynthesis.cancel(); speechSynthesis.speak(new SpeechSynthesisUtterance(labels[i1]));
@@ -274,3 +276,31 @@ const unlockVoice = () => {
   removeEventListener("pointerdown", unlockVoice); removeEventListener("keydown", unlockVoice);
 };
 addEventListener("pointerdown", unlockVoice); addEventListener("keydown", unlockVoice);
+
+// ---- collect mode: record your own examples, then download them for retraining ----
+const collected = [];
+function renderCollect() {
+  const counts = {};
+  collected.forEach((c) => { counts[c.label] = (counts[c.label] || 0) + 1; });
+  $("btnDl").textContent = `Download clips (${collected.length})`;
+  $("btnDl").disabled = !collected.length; $("btnUndo").disabled = !collected.length;
+  $("counts").textContent = Object.entries(counts).map(([k, v]) => `${k}: ${v}`).join("   |   ");
+}
+function addCollected(clip) {
+  const label = $("collectWord").value;
+  collected.push({ label, data: Array.from(clip, (v) => +v.toFixed(5)) });
+  const n = collected.filter((c) => c.label === label).length;
+  setChip(`Saved "${label}" #${n}`);
+  $("collectInfo").textContent = `Saved "${label}" #${n}.  [${lastInfo}]  Wrong sign? Press Undo last.`;
+  renderCollect();
+}
+$("btnUndo").onclick = () => { collected.pop(); renderCollect(); };
+$("btnDl").onclick = () => {
+  const blob = new Blob([JSON.stringify({ format: "isl-clips-v1", frames: T, features: NF, clips: collected })],
+                        { type: "application/json" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `clips_${new Date().toISOString().slice(0, 16).replace(/[:T]/g, "-")}.json`;
+  a.click();
+};
+addEventListener("beforeunload", (e) => { if (collected.length) { e.preventDefault(); e.returnValue = ""; } });

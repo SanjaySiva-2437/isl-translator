@@ -27,26 +27,8 @@ import torch.nn.functional as F
 
 from augmentation import augment as augment_strong
 from cv_utils import confusion_pairs, stratified_folds, stratified_split, wilson
-from isl_feats import GROUPS, features, n_features
-from train import SignNet, augment as augment_basic
-
-
-class FeatNet(SignNet):
-    """SignNet that first adds the extra features (isl_feats.py) to the 142 numbers of every frame.
-    The features are computed inside forward(), so the data files and the app input stay unchanged."""
-
-    def __init__(self, n_classes, groups):
-        super().__init__(n_classes, n_feat=142 + n_features(groups))
-        self.groups = groups
-
-    def forward(self, x):
-        cat = lambda lst, axis: torch.cat(lst, dim=axis)
-        shift = lambda a: torch.cat([a[:, :1], a[:, :-1]], dim=1)
-        return super().forward(torch.cat([x, features(x, self.groups, cat, shift)], dim=-1))
-
-
-def make_model(n_classes, groups):
-    return FeatNet(n_classes, groups) if groups else SignNet(n_classes)
+from isl_feats import GROUPS
+from train import make_model, augment as augment_basic
 
 
 def predict(model, X, device):

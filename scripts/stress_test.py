@@ -15,7 +15,7 @@ import numpy as np
 import torch
 
 from augmentation import NONE, augment
-from train import SignNet
+from train import load_model
 
 CONDITIONS = {
     "clean (no change)": {},
@@ -49,8 +49,7 @@ def main():
     n_classes = len(json.loads(args.label_map.read_text(encoding="utf-8")))
     d = np.load(args.data)
     X, y = d["X_test"].astype(np.float32), torch.tensor(d["y_test"])
-    model = SignNet(n_classes)
-    model.load_state_dict(torch.load(args.weights, map_location="cpu"))
+    model = load_model(args.weights, n_classes)
     model.eval()
 
     lines = [f"Stress test on {len(X)} test clips ({args.repeats} random repeats per condition)",

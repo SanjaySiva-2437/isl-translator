@@ -19,7 +19,7 @@ import numpy as np
 import torch
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from train import SignNet  # noqa: E402
+from train import load_model  # noqa: E402
 
 
 def main():
@@ -34,9 +34,7 @@ def main():
     ordered = [n for n, _ in sorted(label_map.items(), key=lambda kv: kv[1])]
     display = [re.sub(r"^\s*\d+\.\s*", "", n) for n in ordered]
 
-    model = SignNet(len(ordered))
-    model.load_state_dict(torch.load(args.weights, map_location="cpu"))
-    model.eval()
+    model = load_model(args.weights, len(ordered))      # picks up config.json (extra features) next to best.pt
 
     args.out.mkdir(parents=True, exist_ok=True)
     onnx_path = args.out / "sign_model.onnx"

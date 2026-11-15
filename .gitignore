@@ -13,9 +13,6 @@ landmarks/
 data/
 .ipynb_checkpoints/
 
-# personal media for the Hukum easter egg (copyrighted: keep it off the public site)
-app/hukum.mp4
-app/hukum.webm
-app/hukum.jpg
-app/hukum.png
-app/hukum.webp
+
+# allow the Hukum clip for the review
+!app/hukum.mp4

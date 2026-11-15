@@ -287,7 +287,7 @@ function renderCollect() {
   $("counts").textContent = Object.entries(counts).map(([k, v]) => `${k}: ${v}`).join("   |   ");
 }
 function addCollected(clip) {
-  const label = $("collectWord").value;
+  const label = $("collectNew").value.trim() || $("collectWord").value;   // typed new word wins over the list
   collected.push({ label, data: Array.from(clip, (v) => +v.toFixed(5)) });
   const n = collected.filter((c) => c.label === label).length;
   setChip(`Saved "${label}" #${n}`);

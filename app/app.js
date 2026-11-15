@@ -129,9 +129,49 @@ function showResult(top) {
     `<div class="bar"><span class="name">${labels[i]}</span><span class="track"><span class="fill" style="width:${(p * 100).toFixed(0)}%"></span></span><span class="pct">${(p * 100).toFixed(0)}%</span></div>`).join("");
   if (sure && !$("collectOn").checked) {
     const h = document.createElement("span"); h.textContent = labels[i1]; $("history").appendChild(h);
-    if ($("speak").checked && "speechSynthesis" in window) {
+    if (/hukum/i.test(labels[i1])) hukumShow();                      // easter egg: the glasses gesture
+    else if ($("speak").checked && "speechSynthesis" in window) {
       speechSynthesis.cancel(); speechSynthesis.speak(new SpeechSynthesisUtterance(labels[i1]));
     }
+  }
+}
+
+// ---- easter egg: full-screen "Hukum!" animation (shown when the model recognises the "Hukum" gesture) ----
+// Optional: put your own hukum.mp4 (or .webm, any length up to 60 seconds; the animation matches the clip) or hukum.jpg / .png / .webp in the app folder.
+// It plays behind the text. Without those files the plain animation is shown.
+const hukumMedia = { video: null, image: null };
+(async () => {
+  for (const f of ["hukum.mp4", "hukum.webm"]) {
+    try { if ((await fetch(f, { method: "HEAD" })).ok) { hukumMedia.video = f; const pv = document.createElement("video"); pv.preload = "metadata"; pv.onloadedmetadata = () => { if (isFinite(pv.duration)) hukumMedia.dur = pv.duration; }; pv.src = f; break; } } catch (e) {}
+  }
+  if (!hukumMedia.video) for (const f of ["hukum.jpg", "hukum.png", "hukum.webp"]) {
+    try { if ((await fetch(f, { method: "HEAD" })).ok) { hukumMedia.image = f; break; } } catch (e) {}
+  }
+})();
+function hukumShow() {
+  let o = document.getElementById("hukum");
+  if (!o) {
+    o = document.createElement("div"); o.id = "hukum";
+    o.innerHTML = '<div class="bgwrap"></div><div class="h1">HUKUM!</div><div class="h2">Tiger ka Hukum</div>';
+    o.addEventListener("click", () => { clearTimeout(hukumShow.t); o.classList.remove("go"); o.querySelector(".bgwrap").innerHTML = ""; });   // tap to close
+    document.body.appendChild(o);
+  }
+  const bg = o.querySelector(".bgwrap");
+  bg.innerHTML = "";
+  let vid = null, dur = 3.4;
+  if (hukumMedia.video) {
+    vid = document.createElement("video"); vid.className = "bgmedia"; vid.src = hukumMedia.video; vid.playsInline = true;
+    bg.appendChild(vid); dur = Math.min(60, (hukumMedia.dur || 11) + 0.3);
+  } else if (hukumMedia.image) {
+    const im = document.createElement("img"); im.className = "bgmedia"; im.src = hukumMedia.image; bg.appendChild(im); dur = 4;
+  }
+  o.style.setProperty("--hd", dur + "s");
+  o.classList.remove("go"); void o.offsetWidth; o.classList.add("go");   // restart the animation
+  if (vid) vid.play().catch(() => { vid.muted = true; vid.play().catch(() => {}); });
+  clearTimeout(hukumShow.t);
+  hukumShow.t = setTimeout(() => { o.classList.remove("go"); bg.innerHTML = ""; }, dur * 1000 + 100);
+  if (!vid && $("speak").checked && "speechSynthesis" in window) {          // with a video the clip's own sound is used
+    speechSynthesis.cancel(); speechSynthesis.speak(new SpeechSynthesisUtterance("Tiger ka hukum"));
   }
 }
 

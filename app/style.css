@@ -1,3 +1,4 @@
+@import url("https://fonts.googleapis.com/css2?family=Anton&display=swap");
 :root { --fg:#111; --muted:#666; --line:#ddd; --bg:#fff; --accent:#111; }
 @media (prefers-color-scheme: dark) { :root { --fg:#eee; --muted:#999; --line:#333; --bg:#111; --accent:#eee; } }
 * { box-sizing: border-box; }
@@ -44,3 +45,20 @@ input[type=text] { font:inherit; padding:9px 10px; border:1px solid var(--line);
 #collectInfo { color:var(--muted); font-size:.85rem; margin:4px 0; }
 #counts { font-size:.85rem; color:var(--fg); }
 select { font:inherit; padding:9px 10px; border:1px solid var(--line); border-radius:8px; background:var(--bg); color:var(--fg); max-width:100%; }
+
+/* easter egg: "Hukum!" animation */
+#hukum{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.15rem;padding-left:6vw;align-items:flex-start;
+  background:#000;color:#fff;z-index:50;opacity:0;pointer-events:none;text-align:left;font-family:Anton,Impact,"Arial Black",sans-serif;text-transform:uppercase}
+#hukum.go{animation:hukumBg var(--hd,3.4s) ease-out forwards;pointer-events:auto}
+#hukum .h1{font-size:min(11vw,84px);line-height:1;letter-spacing:.08em;color:#fff3c4;
+  text-shadow:0 0 6px #fff3c4,0 0 22px #ffb300,0 0 50px #ff6f00,0 3px 12px #000}
+#hukum .h2{font-size:min(5.5vw,34px);line-height:1.1;letter-spacing:.22em;color:#ffd54f;
+  text-shadow:0 0 14px #ff8f00,0 2px 8px #000}
+#hukum.go .h1{animation:hukumPop .6s .2s cubic-bezier(.2,1.5,.4,1) both,hukumAura 1.6s .8s ease-in-out infinite alternate}
+#hukum.go .h2{animation:hukumPop .6s .5s cubic-bezier(.2,1.5,.4,1) both}
+@keyframes hukumBg{0%{opacity:0}8%{opacity:1}92%{opacity:1}100%{opacity:0}}
+@keyframes hukumPop{0%{transform:scale(.4);opacity:0;letter-spacing:.4em}100%{transform:scale(1);opacity:1}}
+@keyframes hukumAura{from{filter:brightness(1)}to{filter:brightness(1.25) drop-shadow(0 0 10px #ff9800)}}
+#hukum .bgwrap{position:absolute;inset:0;overflow:hidden;z-index:0}
+#hukum .bgmedia{width:100%;height:100%;object-fit:cover}
+#hukum .h1,#hukum .h2{position:relative;z-index:1}

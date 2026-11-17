@@ -60,6 +60,7 @@ button.live{background:var(--rec)!important;color:#fff!important;border:0;box-sh
 button.live .dot{background:#fff}
 .dot{width:10px;height:10px;border-radius:50%;background:#fff;opacity:.9}
 button.hukum .dot{display:none}
+button.hukum.small{flex:none;min-width:0;padding:7px 14px;font-size:.8rem;border-radius:10px;letter-spacing:.12em;box-shadow:none}
 button.link{background:none;border:0;color:var(--muted);padding:4px;font-weight:500;text-decoration:underline;border-radius:6px}
 button.alt{background:none}
 .actions{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:14px}

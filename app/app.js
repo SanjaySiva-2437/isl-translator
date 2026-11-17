@@ -125,7 +125,7 @@ function showResult(top) {
     hukumRun = false;
     const h = top.find(([p, i]) => isHukum(i) && p >= 0.1);
     if (h) {
-      $("word").textContent = labels[h[1]]; $("hint").textContent = "Hukum sign accepted (" + (h[0] * 100).toFixed(0) + "%)";
+      $("word").textContent = labels[h[1]]; $("hint").textContent = "MVP sign accepted (" + (h[0] * 100).toFixed(0) + "%)";
       const sp = document.createElement("span"); sp.textContent = labels[h[1]]; $("history").appendChild(sp);
       hukumShow(); return;
     }
@@ -136,7 +136,7 @@ function showResult(top) {
   const likely = !strong && p1 >= MIN_LIKELY && p1 >= MARGIN * p2;   // clear winner even if not very confident
   const sure = (strong || likely) && !isHukum(i1);   // Hukum never fires from live listening: use the Hukum button
   $("word").textContent = sure ? labels[i1] : "Not sure";
-  $("hint").textContent = (isHukum(i1) ? "Looks like Hukum. Use the Hukum button to play it." : strong ? "Best match" : likely ? "Likely match" : "Low confidence - try again, slower and fully in view.") + (lastInfo ? "  [" + lastInfo + "]" : "");
+  $("hint").textContent = (isHukum(i1) ? "Use the MVP button for this one." : strong ? "Best match, " + (p1 * 100).toFixed(0) + "% confidence" : likely ? "Likely match, " + (p1 * 100).toFixed(0) + "% confidence" : "Low confidence - try again, slower and fully in view.") + (lastInfo ? "  [" + lastInfo + "]" : "");
   $("bars").innerHTML = top.map(([p, i]) =>
     `<div class="bar"><span class="name">${labels[i]}</span><span class="track"><span class="fill" style="width:${(p * 100).toFixed(0)}%"></span></span><span class="pct">${(p * 100).toFixed(0)}%</span></div>`).join("");
   if (sure && !$("collectOn").checked) {
@@ -187,35 +187,34 @@ function hukumShow() {
   }
 }
 
-// ---- recording state machine (everything is started and stopped by buttons; nothing is automatic) ----
-function startRecording(now) { state = "recording"; buf = []; pre = []; startT = now; lastHandT = now; setChip("Recording... sign now", true); updateButtons(); }
-function beginCapture(mode) {
-  if (!running || fileMode || state !== "idle") return;
-  hukumArmed = mode === "hukum"; buf = []; pre = [];
-  const go = () => { manual = true; startRecording(performance.now()); };
-  if ($("collectOn").checked) { go(); return; }                  // collecting many clips: no countdown
-  state = "countdown"; let n = 3; updateButtons();
-  const show = () => { $("count").textContent = n; $("count").classList.add("on"); setChip("Get ready...", false); };
-  show();
-  countTimer = setInterval(() => {
-    n--;
-    if (n > 0) { show(); return; }
-    clearInterval(countTimer); countTimer = null; $("count").classList.remove("on"); go();
-  }, 800);
+// ---- recording state machine ----
+// "Start translating" turns on continuous detection (translating = true) until "Stop translating" is pressed.
+// The MVP button is a one-shot manual capture: press, sign, press again.
+let translating = false;
+function startRecording(now) { state = "recording"; buf = pre.slice(); startT = now; lastHandT = now; setChip("Recording...", true); updateButtons(); }
+function beginCapture() {                                         // MVP button: manual capture, no countdown
+  if (!running || fileMode || translating || state !== "idle") return;
+  hukumArmed = true; buf = []; pre = []; manual = true; startRecording(performance.now());
 }
-function cancelCountdown() {
-  if (countTimer) { clearInterval(countTimer); countTimer = null; }
-  $("count").classList.remove("on"); state = "idle"; hukumArmed = false; updateButtons();
+function toggleTranslating() {
+  if (!running || fileMode) return;
+  if (translating) {
+    translating = false; handRun = 0; pre = [];
+    if (state === "recording" && !manual) stopRecording("button");   // translate what was being signed, then stop
+    setChip("Ready"); updateButtons();
+  } else if (state === "idle") {
+    translating = true; handRun = 0; pre = []; setChip("Translating - show a sign"); updateButtons();
+  }
 }
 function updateButtons() {
   const ready = running && !fileMode;
-  const idle = state === "idle", rec = state === "recording", cd = state === "countdown";
-  btnRec.disabled = !ready || (!idle && !(rec && !hukumArmed));
-  btnHukum.disabled = !ready || (!idle && !(rec && hukumArmed));
-  btnRec.classList.toggle("live", rec && !hukumArmed); btnHukum.classList.toggle("live", rec && hukumArmed);
-  btnRec.querySelector(".t").textContent = rec && !hukumArmed ? "Stop and translate" : cd && !hukumArmed ? "Get ready..." : "Translate a sign";
-  btnHukum.querySelector(".t").textContent = rec && hukumArmed ? "Stop" : cd && hukumArmed ? "..." : "MVP";
-  $("btnStop").hidden = !ready; $("btnStop").disabled = !idle;
+  const idle = state === "idle", rec = state === "recording";
+  btnRec.disabled = !ready || (hukumArmed && rec);
+  btnHukum.disabled = !ready || translating || (!idle && !(rec && hukumArmed));
+  btnRec.classList.toggle("live", translating);
+  btnRec.querySelector(".t").textContent = translating ? "Stop translating" : "Start translating";
+  btnHukum.querySelector(".t").textContent = rec && hukumArmed ? "Stop" : "MVP";
+  $("btnStop").hidden = !ready; $("btnStop").disabled = translating || rec;
   $("stage").classList.toggle("on", ready);
   $("stage").classList.toggle("recording", rec);
 }
@@ -230,28 +229,33 @@ async function stopRecording(reason) {
   buf = [];
   const handFrames = clip.filter(isActive).length;
   if (handFrames < MIN_HAND_FRAMES || clip.filter(hasHand).length < 4) {
-    hukumRun = false; setChip(running ? "Ready" : "Stopped");
-    $("word").textContent = "No sign seen"; $("hint").textContent = "Keep your head, shoulders and both hands in view, then sign after the countdown. Try again.";
-    $("bars").innerHTML = ""; return;
+    hukumRun = false; setChip(translating ? "Translating - show a sign" : running ? "Ready" : "Stopped");
+    if (hukumRun === false && !translating) { $("word").textContent = "No sign seen"; $("hint").textContent = "Keep your head, shoulders and both hands in view, then try again."; $("bars").innerHTML = ""; }
+    return;
   }
   setChip("Thinking...");
   lastInfo = `clip ${clip.length} frames, hand seen in ${clip.filter(hasHand).length}, hands up in ${handFrames}, both hands in ${clip.filter((x) => x[140] > 0 && x[141] > 0).length}`;
   console.log("CLIP", lastInfo);
   await predict(clip);
-  setChip(running ? "Ready" : "Stopped");
+  setChip(translating ? "Translating - show a sign" : running ? "Ready" : "Stopped");
 }
 function onFrame(f, now, fr) {
   if (fileMode) { if (f) { buf.push(f); setChip("Reading video... " + buf.length + " frames", true); } return; }
-  if (state === "countdown") return;
+  if (!f) { if (state === "idle") { handRun = 0; setChip(translating ? (fr && fr.msg ? fr.msg : "Step into view") : "Ready"); } return; }
+  const h = isActive(f);
   if (state === "idle") {
-    if (!f) setChip(fr && fr.msg ? fr.msg : "Step into view");
-    else setChip(fr.ok ? "Ready" : fr.msg);
-    return;                                           // idle means idle: no automatic capture
+    if (!translating) { setChip(fr.ok ? "Ready" : fr.msg); return; }       // not translating: nothing is captured
+    pre.push(f); if (pre.length > PRE) pre.shift();
+    handRun = h && fr.ok ? handRun + 1 : 0;
+    if (handRun >= START_FRAMES) startRecording(now);
+    else setChip(!fr.ok ? fr.msg : h ? "Hands up" : "Translating - show a sign");
+  } else {
+    buf.push(f);
+    if (h) lastHandT = now;
+    const quiet = (now - lastHandT) / 1000, dur = (now - startT) / 1000;
+    if (!manual && quiet > STOP_SECONDS) stopRecording("quiet");
+    else if (dur > MAX_SECONDS) stopRecording("max");
   }
-  if (!f) return;                                     // recording: skip frames where the body was lost
-  buf.push(f);
-  if (isActive(f)) lastHandT = now;
-  if ((now - startT) / 1000 > MAX_SECONDS) stopRecording("max");   // safety stop after 6 seconds
 }
 
 // ---- drawing ----
@@ -293,20 +297,20 @@ async function startCamera() {
       video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 30 } }, audio: false });
   } catch (e) { setChip("Camera blocked"); $("camMsg").textContent = "Camera access was blocked. Allow the camera in your browser's address bar, then press Start camera again."; return; }
   await video.play();
-  running = true; state = "idle"; setChip("Ready");
+  running = true; state = "idle"; translating = false; setChip("Ready");
   $("guide").classList.remove("off"); updateButtons();
   requestAnimationFrame(loop);
 }
 function stopCamera() {
-  cancelCountdown(); running = false; state = "idle"; buf = [];
+  translating = false; hukumArmed = false; running = false; state = "idle"; buf = [];
   if (video.srcObject) video.srcObject.getTracks().forEach((t) => t.stop());
   video.srcObject = null; ctx.clearRect(0, 0, canvas.width, canvas.height);
   setChip("Camera is off"); $("guide").classList.add("off"); updateButtons();
 }
 btnCam.onclick = startCamera;
 $("btnStop").onclick = stopCamera;
-btnRec.onclick = () => { if (state === "idle") beginCapture("sign"); else if (state === "recording" && !hukumArmed) stopRecording("button"); };
-btnHukum.onclick = () => { if (state === "idle") beginCapture("hukum"); else if (state === "recording" && hukumArmed) stopRecording("button"); };
+btnRec.onclick = toggleTranslating;
+btnHukum.onclick = () => { if (state === "idle") beginCapture(); else if (state === "recording" && hukumArmed) stopRecording("button"); };
 $("btnClear").onclick = () => { $("history").innerHTML = ""; };
 
 window.__isl = { get state() { return state; } };   // handy for debugging in the console

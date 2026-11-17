@@ -33,7 +33,7 @@
 <main>
   <section class="hero">
     <h1>Sign it. See it. Hear it.</h1>
-    <p>Turn the camera on, press <b>Translate a sign</b>, sign after the countdown, then press stop. Nothing is captured until you press a button.</p>
+    <p>Start the camera, then press <b>Start translating</b>. Signs are detected, translated and spoken as you make them, until you press <b>Stop translating</b>. Nothing is captured before you press the button.</p>
   </section>
 
   <div class="grid">
@@ -51,7 +51,6 @@
           </svg>
         </div>
         <div id="chip" class="chip">Loading...</div>
-        <div id="count" aria-live="assertive"></div>
         <div id="camOff">
           <div class="camicon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M15 8.5V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2v-1.5l5 3v-11l-5 3z"/></svg></div>
           <h2>Camera is off</h2>
@@ -62,7 +61,7 @@
       <p id="frameHint">Line up your head and shoulders with the outline, with both hands in view.</p>
 
       <div class="actions">
-        <button id="btnRec" class="primary big" disabled><span class="dot"></span><span class="t">Translate a sign</span></button>
+        <button id="btnRec" class="primary big" disabled><span class="dot"></span><span class="t">Start translating</span></button>
       </div>
       <div class="actions sub">
         <label class="switch"><input type="checkbox" id="speak" checked><span class="sw"></span> Speak the result</label>
@@ -75,7 +74,7 @@
       <section class="card result" id="result">
         <div class="label">Translation</div>
         <div id="word">-</div>
-        <div id="hint">Press Translate a sign, then sign after the countdown.</div>
+        <div id="hint">Start the camera, then press Start translating.</div>
         <div id="bars"></div>
       </section>
 
@@ -88,10 +87,10 @@
         <h2>How to use</h2>
         <ol>
           <li><b>Start camera</b> and allow access.</li>
-          <li>Press <b>Translate a sign</b>. A 3-2-1 countdown gives you time to get ready.</li>
-          <li>Sign, then press <b>Stop and translate</b>.</li>
+          <li>Press <b>Start translating</b>. Each sign is recognised, shown with its confidence and spoken.</li>
+          <li>When you are finished, press <b>Stop translating</b>.</li>
         </ol>
-        <p class="small">The small <b>MVP</b> button works the same way (press, sign, press again).</p>
+        <p class="small">The small <b>MVP</b> button is separate: press it, make the sign, then press it again.</p>
       </section>
     </aside>
   </div>
@@ -118,7 +117,7 @@
         <button id="btnUndo" class="alt" disabled>Undo last</button>
         <button id="btnDl" class="alt" disabled>Download clips (0)</button>
       </div>
-      <p id="collectInfo">Turn on Collect mode, pick the word (or type a new word in the box; clear the box to use the list again), then press Translate a sign, sign it and press stop. Each sign is saved under that word. Aim for 10-15 per word. Do not refresh the page before you download.</p>
+      <p id="collectInfo">Turn on Collect mode, pick the word (or type a new word in the box; clear the box to use the list again), then press Start translating and sign it. Each sign is saved under that word. Aim for 10-15 per word. Do not refresh the page before you download.</p>
       <div id="counts"></div>
     </div>
   </details>

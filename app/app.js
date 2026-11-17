@@ -122,7 +122,7 @@ const isHukum = (i) => /hukum/i.test(labels[i]);
 function showResult(top) {
   if (hukumRun) {                      // the Hukum button was used for this clip
     hukumRun = false;
-    const h = top.find(([p, i]) => isHukum(i) && p >= 0.2);
+    const h = top.find(([p, i]) => isHukum(i) && p >= 0.1);
     if (h) {
       $("word").textContent = labels[h[1]]; $("hint").textContent = "Hukum sign accepted (" + (h[0] * 100).toFixed(0) + "%)";
       const sp = document.createElement("span"); sp.textContent = labels[h[1]]; $("history").appendChild(sp);
@@ -333,9 +333,9 @@ $("btnSave").onclick = () => {
 const unlockVoice = () => {
   try { speechSynthesis.speak(new SpeechSynthesisUtterance("")); } catch (e) {}
   $("voiceHint").classList.add("off");
-  removeEventListener("pointerdown", unlockVoice); removeEventListener("keydown", unlockVoice);
+  removeEventListener("click", unlockVoice); removeEventListener("keydown", unlockVoice);
 };
-addEventListener("pointerdown", unlockVoice); addEventListener("keydown", unlockVoice);
+addEventListener("click", unlockVoice); addEventListener("keydown", unlockVoice);   // on click (not pointerdown) so the hint vanishing cannot move a button mid-click
 
 // ---- collect mode: record your own examples, then download them for retraining ----
 const collected = [];

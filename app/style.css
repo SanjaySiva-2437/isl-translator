@@ -64,5 +64,3 @@ select { font:inherit; padding:9px 10px; border:1px solid var(--line); border-ra
 #hukum .h1,#hukum .h2{position:relative;z-index:1}
 
 button#btnHukum{padding:5px 12px;font-size:.8rem;letter-spacing:.08em}
-#frameHint{min-height:2.8em}   /* reserve room so the buttons below never jump when the hint text changes */
-#voiceHint.off{display:block;visibility:hidden}   /* hide without moving the buttons: a layout jump on the first tap used to swallow that click */

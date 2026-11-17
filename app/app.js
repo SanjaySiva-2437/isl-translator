@@ -13,12 +13,13 @@ const ACTIVE_Y = 1.2;   // a hand counts as "signing" when its wrist is above th
 
 const $ = (id) => document.getElementById(id);
 const video = $("video"), canvas = $("overlay"), ctx = canvas.getContext("2d");
-const chip = $("chip"), btnCam = $("btnCam"), btnRec = $("btnRec");
+const chip = $("chip"), btnCam = $("btnCam"), btnRec = $("btnRec"), btnHukum = $("btnHukum");
 
 let hand, pose, session, labels = [];
-let running = false, state = "idle";       // idle | recording
+let running = false, state = "idle";       // idle | countdown | recording
 let buf = [], pre = [], handRun = 0, lastHandT = 0, startT = 0, manual = false;
 let lastVideoTime = -1, tsCounter = 0;
+let hukumArmed = false, hukumRun = false, countTimer = null;   // the Hukum button: only this path can play the animation
 let fileMode = false, lastClip = null, lastInfo = "";
 
 function setChip(text, rec = false) { chip.textContent = text; chip.classList.toggle("rec", rec); }
@@ -37,7 +38,8 @@ async function init() {
   $("collectWord").innerHTML = [...labels].sort((x, y) => x.localeCompare(y)).map((l) => `<option>${l}</option>`).join("");
   setChip("Ready");
   btnCam.disabled = false; $("btnFile").disabled = false;
-  await startCamera();                      // start listening right away; no button needed
+  $("vocab").innerHTML = labels.filter((l) => !/hukum/i.test(l)).sort((x, y) => x.localeCompare(y)).map((l) => `<span>${l}</span>`).join("");
+  setChip("Camera is off");               // nothing is captured or translated until the person presses a button
 }
 
 // ---- landmark vector (spec v1) ----
@@ -117,14 +119,24 @@ async function predict(frames, show = true) {
   if (show) showResult(top);
   return top;
 }
+const isHukum = (i) => /hukum/i.test(labels[i]);
 function showResult(top) {
+  if (hukumRun) {                      // the Hukum button was used for this clip
+    hukumRun = false;
+    const h = top.find(([p, i]) => isHukum(i) && p >= 0.1);
+    if (h) {
+      $("word").textContent = labels[h[1]]; $("hint").textContent = "Hukum sign accepted (" + (h[0] * 100).toFixed(0) + "%)";
+      const sp = document.createElement("span"); sp.textContent = labels[h[1]]; $("history").appendChild(sp);
+      hukumShow(); return;
+    }
+  }
   const [p1, i1] = top[0];
   const p2 = top[1] ? top[1][0] : 0;
   const strong = p1 >= THRESHOLD;
   const likely = !strong && p1 >= MIN_LIKELY && p1 >= MARGIN * p2;   // clear winner even if not very confident
-  const sure = strong || likely;
+  const sure = (strong || likely) && !isHukum(i1);   // Hukum never fires from live listening: use the Hukum button
   $("word").textContent = sure ? labels[i1] : "Not sure";
-  $("hint").textContent = (strong ? "Best match" : likely ? "Likely match" : "Low confidence - try again, slower and fully in view.") + (lastInfo ? "  [" + lastInfo + "]" : "");
+  $("hint").textContent = (isHukum(i1) ? "Looks like Hukum. Use the Hukum button to play it." : strong ? "Best match" : likely ? "Likely match" : "Low confidence - try again, slower and fully in view.") + (lastInfo ? "  [" + lastInfo + "]" : "");
   $("bars").innerHTML = top.map(([p, i]) =>
     `<div class="bar"><span class="name">${labels[i]}</span><span class="track"><span class="fill" style="width:${(p * 100).toFixed(0)}%"></span></span><span class="pct">${(p * 100).toFixed(0)}%</span></div>`).join("");
   if (sure && !$("collectOn").checked) {
@@ -175,17 +187,53 @@ function hukumShow() {
   }
 }
 
-// ---- recording state machine ----
-function startRecording(now) { state = "recording"; buf = pre.slice(); startT = now; lastHandT = now; setChip("Recording...", true); }
+// ---- recording state machine (everything is started and stopped by buttons; nothing is automatic) ----
+function startRecording(now) { state = "recording"; buf = []; pre = []; startT = now; lastHandT = now; setChip("Recording... sign now", true); updateButtons(); }
+function beginCapture(mode) {
+  if (!running || fileMode || state !== "idle") return;
+  hukumArmed = mode === "hukum"; buf = []; pre = [];
+  const go = () => { manual = true; startRecording(performance.now()); };
+  if ($("collectOn").checked) { go(); return; }                  // collecting many clips: no countdown
+  state = "countdown"; let n = 3; updateButtons();
+  const show = () => { $("count").textContent = n; $("count").classList.add("on"); setChip("Get ready...", false); };
+  show();
+  countTimer = setInterval(() => {
+    n--;
+    if (n > 0) { show(); return; }
+    clearInterval(countTimer); countTimer = null; $("count").classList.remove("on"); go();
+  }, 800);
+}
+function cancelCountdown() {
+  if (countTimer) { clearInterval(countTimer); countTimer = null; }
+  $("count").classList.remove("on"); state = "idle"; hukumArmed = false; updateButtons();
+}
+function updateButtons() {
+  const ready = running && !fileMode;
+  const idle = state === "idle", rec = state === "recording", cd = state === "countdown";
+  btnRec.disabled = !ready || (!idle && !(rec && !hukumArmed));
+  btnHukum.disabled = !ready || (!idle && !(rec && hukumArmed));
+  btnRec.classList.toggle("live", rec && !hukumArmed); btnHukum.classList.toggle("live", rec && hukumArmed);
+  btnRec.querySelector(".t").textContent = rec && !hukumArmed ? "Stop and translate" : cd && !hukumArmed ? "Get ready..." : "Translate a sign";
+  btnHukum.querySelector(".t").textContent = rec && hukumArmed ? "Stop and play" : cd && hukumArmed ? "Get ready..." : "Hukum sign";
+  $("btnStop").hidden = !ready; $("btnStop").disabled = !idle;
+  $("stage").classList.toggle("on", ready);
+  $("stage").classList.toggle("recording", rec);
+}
 async function stopRecording(reason) {
-  state = "idle"; manual = false; btnRec.textContent = "Record manually"; handRun = 0; pre = [];
+  hukumRun = hukumArmed; hukumArmed = false;
+  state = "idle"; manual = false; handRun = 0; pre = [];
+  updateButtons();
   // drop trailing frames without hands, keeping a small pad
   let last = buf.length - 1;
   while (last > 0 && !isActive(buf[last])) last--;
   const clip = buf.slice(0, Math.min(buf.length, last + 1 + PAD));
   buf = [];
   const handFrames = clip.filter(isActive).length;
-  if (handFrames < MIN_HAND_FRAMES || clip.filter(hasHand).length < 4) { setChip(running ? "Ready" : "Stopped"); return; }
+  if (handFrames < MIN_HAND_FRAMES || clip.filter(hasHand).length < 4) {
+    hukumRun = false; setChip(running ? "Ready" : "Stopped");
+    $("word").textContent = "No sign seen"; $("hint").textContent = "Keep your head, shoulders and both hands in view, then sign after the countdown. Try again.";
+    $("bars").innerHTML = ""; return;
+  }
   setChip("Thinking...");
   lastInfo = `clip ${clip.length} frames, hand seen in ${clip.filter(hasHand).length}, hands up in ${handFrames}, both hands in ${clip.filter((x) => x[140] > 0 && x[141] > 0).length}`;
   console.log("CLIP", lastInfo);
@@ -194,20 +242,16 @@ async function stopRecording(reason) {
 }
 function onFrame(f, now, fr) {
   if (fileMode) { if (f) { buf.push(f); setChip("Reading video... " + buf.length + " frames", true); } return; }
-  if (!f) { if (state === "idle") { handRun = 0; setChip(fr && fr.msg ? fr.msg : "Step into view"); } return; }
-  const h = isActive(f);
+  if (state === "countdown") return;
   if (state === "idle") {
-    pre.push(f); if (pre.length > PRE) pre.shift();
-    handRun = h && fr.ok ? handRun + 1 : 0;
-    if ($("auto").checked && handRun >= START_FRAMES) startRecording(now);
-    else setChip(!fr.ok ? fr.msg : h ? "Hands up" : "Listening");
-  } else {
-    buf.push(f);
-    if (h) lastHandT = now;
-    const quiet = (now - lastHandT) / 1000, dur = (now - startT) / 1000;
-    if (!manual && quiet > STOP_SECONDS) stopRecording("quiet");
-    else if (dur > MAX_SECONDS) stopRecording("max");
+    if (!f) setChip(fr && fr.msg ? fr.msg : "Step into view");
+    else setChip(fr.ok ? "Ready" : fr.msg);
+    return;                                           // idle means idle: no automatic capture
   }
+  if (!f) return;                                     // recording: skip frames where the body was lost
+  buf.push(f);
+  if (isActive(f)) lastHandT = now;
+  if ((now - startT) / 1000 > MAX_SECONDS) stopRecording("max");   // safety stop after 6 seconds
 }
 
 // ---- drawing ----
@@ -243,26 +287,26 @@ function loop() {
 
 // ---- UI ----
 async function startCamera() {
+  setChip("Starting camera...");
   try {
     video.srcObject = await navigator.mediaDevices.getUserMedia({
       video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 30 } }, audio: false });
-  } catch (e) { setChip("Camera blocked - tap Start camera"); return; }
+  } catch (e) { setChip("Camera blocked"); $("camMsg").textContent = "Camera access was blocked. Allow the camera in your browser's address bar, then press Start camera again."; return; }
   await video.play();
-  running = true; btnCam.textContent = "Stop camera"; btnRec.disabled = false; setChip("Listening");
-  $("guide").classList.remove("off");
+  running = true; state = "idle"; setChip("Ready");
+  $("guide").classList.remove("off"); updateButtons();
   requestAnimationFrame(loop);
 }
-btnCam.onclick = async () => {
-  if (running) {
-    running = false; video.srcObject.getTracks().forEach((t) => t.stop()); btnCam.textContent = "Start camera";
-    btnRec.disabled = true; setChip("Stopped"); $("guide").classList.add("off"); return;
-  }
-  await startCamera();
-};
-btnRec.onclick = () => {
-  if (state === "idle") { manual = true; startRecording(performance.now()); btnRec.textContent = "Stop and translate"; }
-  else stopRecording("button");
-};
+function stopCamera() {
+  cancelCountdown(); running = false; state = "idle"; buf = [];
+  if (video.srcObject) video.srcObject.getTracks().forEach((t) => t.stop());
+  video.srcObject = null; ctx.clearRect(0, 0, canvas.width, canvas.height);
+  setChip("Camera is off"); $("guide").classList.add("off"); updateButtons();
+}
+btnCam.onclick = startCamera;
+$("btnStop").onclick = stopCamera;
+btnRec.onclick = () => { if (state === "idle") beginCapture("sign"); else if (state === "recording" && !hukumArmed) stopRecording("button"); };
+btnHukum.onclick = () => { if (state === "idle") beginCapture("hukum"); else if (state === "recording" && hukumArmed) stopRecording("button"); };
 $("btnClear").onclick = () => { $("history").innerHTML = ""; };
 
 window.__isl = { get state() { return state; } };   // handy for debugging in the console
@@ -275,11 +319,11 @@ $("fileIn").onchange = async (e) => {
   if (running && video.srcObject) { video.srcObject.getTracks().forEach((t) => t.stop()); }
   video.srcObject = null; video.src = URL.createObjectURL(file); video.loop = false;
   fileMode = true; buf = []; state = "idle"; running = true; lastVideoTime = -1; $("guide").classList.add("off");
-  btnCam.textContent = "Start camera"; btnRec.disabled = true;
+  updateButtons();
   await video.play();
   requestAnimationFrame(loop);
   video.onended = async () => {
-    running = false; fileMode = false; lastInfo = "";
+    running = false; fileMode = false; lastInfo = ""; updateButtons();
     const full = buf.slice(); buf = [];
     setChip("Thinking...");
     const trimmed = (() => { let a = 0, b = full.length - 1;
@@ -312,7 +356,7 @@ $("btnSave").onclick = () => {
 // Browsers only allow speech after the first tap on the page. Unlock it with a silent utterance.
 const unlockVoice = () => {
   try { speechSynthesis.speak(new SpeechSynthesisUtterance("")); } catch (e) {}
-  $("voiceHint").classList.add("off");
+  
   removeEventListener("pointerdown", unlockVoice); removeEventListener("keydown", unlockVoice);
 };
 addEventListener("pointerdown", unlockVoice); addEventListener("keydown", unlockVoice);

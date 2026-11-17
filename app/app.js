@@ -214,7 +214,7 @@ function updateButtons() {
   btnHukum.disabled = !ready || (!idle && !(rec && hukumArmed));
   btnRec.classList.toggle("live", rec && !hukumArmed); btnHukum.classList.toggle("live", rec && hukumArmed);
   btnRec.querySelector(".t").textContent = rec && !hukumArmed ? "Stop and translate" : cd && !hukumArmed ? "Get ready..." : "Translate a sign";
-  btnHukum.querySelector(".t").textContent = rec && hukumArmed ? "Stop and play" : cd && hukumArmed ? "Get ready..." : "Hukum sign";
+  btnHukum.querySelector(".t").textContent = rec && hukumArmed ? "Stop" : cd && hukumArmed ? "..." : "MVP";
   $("btnStop").hidden = !ready; $("btnStop").disabled = !idle;
   $("stage").classList.toggle("on", ready);
   $("stage").classList.toggle("recording", rec);
